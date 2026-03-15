@@ -1,5 +1,6 @@
 <script lang="ts">
   import { partieStore, nomsStore } from '../stores/game';
+  import { validerConfiguration } from '../utils/game-logic';
 
   const NOM_MIN = 3;
   const NOM_MAX = 10;
@@ -26,26 +27,15 @@
    * Vérifie que tous les noms sont renseignés et uniques.
    */
   function validerEtLancer(): void {
-    erreur = '';
     const nomsNettoyés = nomsJoueurs.map(n => n.trim());
+    const messageErreur = validerConfiguration(nomsNettoyés, nbUndercover);
 
-    if (nomsNettoyés.some(n => n === '')) {
-      erreur = 'Tous les joueurs doivent avoir un prénom.';
+    if (messageErreur !== null) {
+      erreur = messageErreur;
       return;
     }
 
-    const nomsUniques = new Set(nomsNettoyés.map(n => n.toLowerCase()));
-    if (nomsUniques.size !== nomsNettoyés.length) {
-      erreur = 'Deux joueurs ne peuvent pas avoir le même prénom.';
-      return;
-    }
-
-    const nbUndercoverMax = Math.floor(nomsNettoyés.length / 3);
-    if (nbUndercover > nbUndercoverMax) {
-      erreur = `Pour ${nomsNettoyés.length} joueurs, maximum ${nbUndercoverMax} undercover.`;
-      return;
-    }
-
+    erreur = '';
     partieStore.demarrerPartie(nomsNettoyés, nbUndercover);
   }
 

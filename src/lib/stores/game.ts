@@ -1,5 +1,6 @@
 import { writable, derived } from 'svelte/store';
 import type { EtatPartie, Joueur, PaireMots } from '../types';
+import { melangerTableau, verifierVictoire } from '../utils/game-logic';
 import pairesMotsJson from '../data/words.json';
 
 
@@ -21,19 +22,6 @@ const etatInitial: EtatPartie = {
 
 function creerStore() {
   const { subscribe, set, update } = writable<EtatPartie>(etatInitial);
-
-  /**
-   * Mélange un tableau avec l'algorithme Fisher-Yates
-   * @param tableau Le tableau à mélanger
-   */
-  function melangerTableau<T>(tableau: T[]): T[] {
-    const copie = [...tableau];
-    for (let i = copie.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [copie[i], copie[j]] = [copie[j], copie[i]];
-    }
-    return copie;
-  }
 
   /**
    * Lance une nouvelle partie en assignant les rôles et les mots à chaque joueur.
@@ -114,15 +102,10 @@ function creerStore() {
       const joueursÉliminés = [...etat.joueursÉliminés, joueurEliminé];
       const joueursActifs = joueursMisAJour.filter(j => !j.éliminé);
 
-      const nbUndercoverActifs = joueursActifs.filter(j => j.role === 'UNDERCOVER').length;
-      const nbCivilsActifs = joueursActifs.filter(j => j.role === 'CIVIL').length;
+      const victoire = verifierVictoire(joueursActifs);
 
-      if (nbUndercoverActifs === 0) {
-        return { ...etat, joueurs: joueursMisAJour, joueursÉliminés, phase: 'RESULTAT', gagnant: 'CIVILS', civilÉliminéNom: null };
-      }
-
-      if (nbUndercoverActifs >= nbCivilsActifs) {
-        return { ...etat, joueurs: joueursMisAJour, joueursÉliminés, phase: 'RESULTAT', gagnant: 'UNDERCOVER', civilÉliminéNom: null };
+      if (victoire !== null) {
+        return { ...etat, joueurs: joueursMisAJour, joueursÉliminés, phase: 'RESULTAT', gagnant: victoire, civilÉliminéNom: null };
       }
 
       const nomCivilÉliminé = joueurEliminé.role === 'CIVIL' ? joueurEliminé.nom : null;
