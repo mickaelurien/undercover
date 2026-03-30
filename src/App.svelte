@@ -3,7 +3,6 @@
   import HomeScreen from './lib/components/HomeScreen.svelte';
   import GameSetup from './lib/components/GameSetup.svelte';
   import WordDistribution from './lib/components/WordDistribution.svelte';
-  import DiscussionPhase from './lib/components/DiscussionPhase.svelte';
   import VotingPhase from './lib/components/VotingPhase.svelte';
   import ResultScreen from './lib/components/ResultScreen.svelte';
 
@@ -17,8 +16,6 @@
     <GameSetup />
   {:else if phase === 'DISTRIBUTION_MOTS'}
     <WordDistribution />
-  {:else if phase === 'DISCUSSION'}
-    <DiscussionPhase />
   {:else if phase === 'VOTE'}
     <VotingPhase />
   {:else if phase === 'RESULTAT'}

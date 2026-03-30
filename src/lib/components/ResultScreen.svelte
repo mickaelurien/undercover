@@ -1,117 +1,133 @@
 <script lang="ts">
+  import { Card, Badge, Button } from 'flowbite-svelte';
   import { partieStore } from '../stores/game';
+  import type { Joueur } from '../types';
 
   $: etat = $partieStore;
-  $: gagnant = etat.gagnant;
-  $: paire = etat.paireMots;
-  $: civils = gagnant === 'CIVILS';
-  $: dernierÉliminé = etat.joueursÉliminés.at(-1) ?? null;
+  $: civils = etat.gagnant === 'CIVILS';
 
-  let motsCachés = true;
+  $: nomsUndercover = etat.joueurs
+    .filter(j => j.role === 'UNDERCOVER')
+    .map(j => j.nom)
+    .join(', ');
+
+  const messageVictoire: Record<string, { titre: string; corps: string }> = {
+    CIVILS: {
+      titre: "Les Civils ont su démasquer l'intrus avec brio.",
+      corps: 'Le groupe a joué collectif. Félicitations !',
+    },
+    UNDERCOVER: {
+      titre: "L'Undercover a semé le doute jusqu'au bout.",
+      corps: 'Le bluff a parfaitement fonctionné. Impressionnant.',
+    },
+  };
+
+  $: message = messageVictoire[etat.gagnant ?? 'CIVILS'];
+
+  const configRole: Record<string, { label: string; badgeColor: string }> = {
+    CIVIL: { label: 'Civil', badgeColor: 'indigo' },
+    UNDERCOVER: { label: 'Undercover', badgeColor: 'red' },
+    MR_WHITE: { label: 'Mr. White', badgeColor: 'gray' },
+  };
+
+  function infoRole(joueur: Joueur) {
+    return configRole[joueur.role] ?? configRole['CIVIL'];
+  }
+
+  function motJoueur(joueur: Joueur): string {
+    return joueur.role === 'MR_WHITE' ? '— Aucun —' : (joueur.mot ?? '—');
+  }
 </script>
 
-<div class="screen items-center justify-between px-6 py-12">
-  <div class="flex flex-col items-center gap-6 text-center w-full">
-    <div class="text-6xl">
-      {civils ? '🎉' : '😈'}
-    </div>
-
-    <div class="space-y-1">
-      <h1 class="text-4xl font-black {civils ? 'text-green-400' : 'text-red-400'}">
-        {civils ? 'Les civils gagnent !' : "L'undercover gagne !"}
+<div class="screen px-5 pt-14 pb-10">
+  <div class="mb-8">
+    {#if civils}
+      <h1 class="text-5xl font-black leading-tight">
+        Les Civils ont<br /><span class="text-indigo-400">gagné !</span>
       </h1>
-    </div>
-
-    {#if dernierÉliminé}
-      <div class="card w-full text-center space-y-3">
-        <p class="text-white/50 text-sm uppercase tracking-wider">Dernier éliminé</p>
-        <p class="text-3xl font-black text-white">{dernierÉliminé.nom}</p>
-        <div class="inline-block px-4 py-1.5 rounded-full text-sm font-bold
-          {dernierÉliminé.role === 'UNDERCOVER'
-            ? 'bg-red-900/50 text-red-300 border border-red-500/50'
-            : 'bg-blue-900/50 text-blue-300 border border-blue-500/50'}">
-          {dernierÉliminé.role === 'UNDERCOVER' ? '🕵️ UNDERCOVER' : '👥 CIVIL'}
-        </div>
-      </div>
+    {:else}
+      <h1 class="text-5xl font-black leading-tight">
+        <span class="text-red-400">L'Undercover</span><br />a gagné !
+      </h1>
     {/if}
+    <p class="text-white/50 text-base mt-2">
+      L'Undercover était <strong class="text-white">{nomsUndercover}</strong>.
+    </p>
+  </div>
 
-    {#if etat.joueursÉliminés.length > 1}
-      <div class="card w-full space-y-2">
-        <p class="text-white/50 text-xs uppercase tracking-wider mb-1">Historique des éliminations</p>
-        {#each etat.joueursÉliminés as éliminé, i}
-          <div class="flex items-center gap-3 py-1">
-            <span class="text-white/30 text-xs w-4">{i + 1}</span>
-            <span class="font-medium">{éliminé.nom}</span>
-            <span class="ml-auto text-xs px-2 py-0.5 rounded-full
-              {éliminé.role === 'UNDERCOVER'
-                ? 'bg-red-900/50 text-red-300'
-                : 'bg-blue-900/50 text-blue-300'}">
-              {éliminé.role}
-            </span>
+  <div class="flex-1 overflow-y-auto space-y-3 pb-4">
+    {#each etat.joueurs as joueur}
+      {@const info = infoRole(joueur)}
+      <Card class="bg-zinc-800/80! border-0! rounded-2xl! px-4! py-4! gap-0">
+        <div class="flex items-start justify-between">
+          <div class="flex-1 min-w-0">
+            <p class="text-xl font-black text-white leading-tight">{joueur.nom}</p>
+            <Badge color={info.badgeColor} class="mt-1 uppercase! tracking-widest! text-[10px]!">
+              {info.label}
+            </Badge>
           </div>
-        {/each}
-      </div>
-    {/if}
 
-    <div class="card w-full space-y-4">
-      <div class="flex items-center justify-between">
-        <p class="text-white/50 text-sm uppercase tracking-wider">Les mots</p>
-        <button
-          class="text-primary-400 text-sm font-semibold"
-          on:click={() => (motsCachés = !motsCachés)}
-        >
-          {motsCachés ? 'Révéler' : 'Cacher'}
-        </button>
-      </div>
-
-      {#if !motsCachés && paire}
-        <div class="grid grid-cols-2 gap-3 text-center">
-          <div class="bg-blue-900/30 rounded-xl p-4 border border-blue-500/30">
-            <p class="text-xs text-blue-400/70 uppercase tracking-wider mb-1">Civil</p>
-            <p class="text-xl font-bold text-blue-300">{paire.motCivil}</p>
-          </div>
-          <div class="bg-red-900/30 rounded-xl p-4 border border-red-500/30">
-            <p class="text-xs text-red-400/70 uppercase tracking-wider mb-1">Undercover</p>
-            <p class="text-xl font-bold text-red-300">{paire.motUndercover}</p>
-          </div>
-        </div>
-
-        <div class="space-y-2 pt-2">
-          <p class="text-xs text-white/40 uppercase tracking-wider">Rôles de chacun</p>
-          {#each etat.joueurs as joueur}
-            <div class="flex items-center justify-between py-1 {joueur.éliminé ? 'opacity-40' : ''}">
-              <div class="flex items-center gap-2">
-                {#if joueur.éliminé}
-                  <span class="text-xs text-white/30">✕</span>
-                {/if}
-                <span class="font-medium">{joueur.nom}</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-sm text-white/50">{joueur.mot}</span>
-                <span class="text-xs px-2 py-0.5 rounded-full
-                  {joueur.role === 'UNDERCOVER'
-                    ? 'bg-red-900/50 text-red-300'
-                    : 'bg-blue-900/50 text-blue-300'}">
-                  {joueur.role}
-                </span>
-              </div>
+          {#if joueur.role === 'CIVIL'}
+            <div class="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center flex-shrink-0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M5 12l5 5L20 7" stroke="#818cf8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
             </div>
-          {/each}
+          {:else if joueur.role === 'UNDERCOVER'}
+            <div class="w-8 h-8 rounded-full bg-orange-500/10 flex items-center justify-center flex-shrink-0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" stroke="#f97316" stroke-width="2" stroke-linecap="round"/>
+                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" stroke="#f97316" stroke-width="2" stroke-linecap="round"/>
+                <line x1="1" y1="1" x2="23" y2="23" stroke="#f97316" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+          {:else}
+            <div class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="11" cy="11" r="8" stroke="white" stroke-width="2" opacity="0.4"/>
+                <path d="M21 21l-4.35-4.35" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+              </svg>
+            </div>
+          {/if}
         </div>
-      {:else if motsCachés}
-        <p class="text-white/30 text-sm text-center py-2">
-          Appuie sur Révéler pour voir les mots et les rôles
-        </p>
-      {/if}
+
+        <div class="mt-3 pt-3 border-t border-white/5">
+          <p class="text-[10px] font-semibold uppercase tracking-widest text-white/30 mb-1">Mot</p>
+          <p class="text-sm font-semibold {joueur.role === 'MR_WHITE' ? 'text-white/30 italic' : 'text-white'}">
+            {motJoueur(joueur)}
+          </p>
+        </div>
+      </Card>
+    {/each}
+
+    <div
+      class="rounded-2xl px-5 py-5 mt-2 relative overflow-hidden"
+      style="background: radial-gradient(ellipse at 70% 50%, rgba(99,102,241,0.15) 0%, rgba(15,15,25,0) 70%), #18181b;"
+    >
+      <div
+        class="absolute right-8 top-1/2 -translate-y-1/2 w-20 h-20 rounded-full opacity-10"
+        style="background: radial-gradient(circle, white 0%, transparent 70%);"
+        aria-hidden="true"
+      ></div>
+      <p class="text-indigo-400 font-black text-lg leading-snug relative z-10">
+        {message.titre}
+      </p>
+      <p class="text-white/30 text-xs mt-1 leading-relaxed relative z-10">
+        {message.corps}
+      </p>
     </div>
   </div>
 
-  <div class="w-full space-y-3 mt-4">
-    <button class="btn-primary" on:click={() => partieStore.nouvellePartie()}>
+  <div class="flex flex-col gap-3 pt-4">
+    <button class="btn-accent" on:click={() => partieStore.nouvellePartie()}>
       Nouvelle partie
     </button>
-    <button class="btn-secondary" on:click={() => partieStore.retourAccueil()}>
-      Accueil
-    </button>
+    <Button
+      color="light"
+      class="w-full! bg-transparent! border-0! text-white/60! hover:text-white! font-semibold! text-base! shadow-none!"
+      onclick={() => partieStore.rejouerMêmesJoueurs()}
+    >
+      Rejouer avec les mêmes joueurs
+    </Button>
   </div>
 </div>

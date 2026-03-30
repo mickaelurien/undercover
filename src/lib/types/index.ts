@@ -2,11 +2,16 @@ export type Phase =
   | 'ACCUEIL'
   | 'CONFIGURATION'
   | 'DISTRIBUTION_MOTS'
-  | 'DISCUSSION'
   | 'VOTE'
   | 'RESULTAT';
 
-export type Role = 'CIVIL' | 'UNDERCOVER';
+export type Role = 'CIVIL' | 'UNDERCOVER' | 'MR_WHITE';
+
+export interface ConfigPartie {
+  nbJoueurs: number;
+  nbUndercover: number;
+  nbMrWhite: number;
+}
 
 export interface Joueur {
   id: string;

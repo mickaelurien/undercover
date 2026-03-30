@@ -1,18 +1,25 @@
 <script lang="ts">
-  import { partieStore, nomsStore } from '../stores/game';
+  import { Button, Input, Alert, Avatar } from 'flowbite-svelte';
+  import { partieStore, nomsStore, configStore } from '../stores/game';
   import { validerConfiguration } from '../utils/game-logic';
 
   const NOM_MIN = 3;
-  const NOM_MAX = 10;
-  const NB_UNDERCOVER_MAX = 2;
+  const NOM_MAX = 12;
 
-  let nomsJoueurs: string[] = $nomsStore.length >= NOM_MIN ? [...$nomsStore] : ['', '', ''];
-  let nbUndercover: number = 1;
+  const nomParDefaut = (i: number): string => `Joueur ${i + 1}`;
+
+  /** Initialise les noms depuis le store ou génère des noms par défaut selon la config */
+  let nomsJoueurs: string[] = (() => {
+    const nbCible = $configStore.nbJoueurs;
+    if ($nomsStore.length === nbCible) return [...$nomsStore];
+    return Array.from({ length: nbCible }, (_, i) => nomParDefaut(i));
+  })();
+
   let erreur: string = '';
 
   function ajouterJoueur(): void {
     if (nomsJoueurs.length < NOM_MAX) {
-      nomsJoueurs = [...nomsJoueurs, ''];
+      nomsJoueurs = [...nomsJoueurs, nomParDefaut(nomsJoueurs.length)];
     }
   }
 
@@ -28,7 +35,7 @@
    */
   function validerEtLancer(): void {
     const nomsNettoyés = nomsJoueurs.map(n => n.trim());
-    const messageErreur = validerConfiguration(nomsNettoyés, nbUndercover);
+    const messageErreur = validerConfiguration(nomsNettoyés, $configStore.nbUndercover);
 
     if (messageErreur !== null) {
       erreur = messageErreur;
@@ -36,107 +43,83 @@
     }
 
     erreur = '';
-    partieStore.demarrerPartie(nomsNettoyés, nbUndercover);
+    partieStore.demarrerPartie(nomsNettoyés, $configStore.nbUndercover);
   }
 
-  $: nbUndercoverMax = Math.max(1, Math.min(NB_UNDERCOVER_MAX, Math.floor(nomsJoueurs.length / 3)));
-  $: if (nbUndercover > nbUndercoverMax) nbUndercover = nbUndercoverMax;
+  function initialesJoueur(nom: string, index: number): string {
+    const n = nom.trim() || nomParDefaut(index);
+    return n.slice(0, 2).toUpperCase();
+  }
 </script>
 
 <div class="screen">
-  <div class="flex items-center gap-4 px-6 pt-8 pb-4">
-    <button
-      class="text-white/60 hover:text-white p-2 -ml-2 transition-colors"
-      on:click={() => partieStore.retourAccueil()}
-      aria-label="Retour"
-    >
-      ←
-    </button>
-    <h1 class="text-2xl font-bold">Nouvelle partie</h1>
-  </div>
+  <div class="flex-1 overflow-y-auto px-5 pt-14 pb-6">
+    <h1 class="text-[2.6rem] font-black text-center mb-10 leading-[1.15] tracking-tight">
+      Configuration des<br />Joueurs
+    </h1>
 
-  <div class="flex-1 overflow-y-auto px-6 pb-6 space-y-6">
     <div class="space-y-3">
-      <h2 class="text-sm font-semibold text-white/60 uppercase tracking-wider">
-        Joueurs ({nomsJoueurs.length})
-      </h2>
+      {#each nomsJoueurs as _nom, index}
+        <div class="flex items-center gap-3 bg-zinc-800/80 rounded-2xl px-4 py-3">
+          <Avatar class="bg-slate-700 text-indigo-400 text-xs font-bold flex-shrink-0" size="sm">
+            {initialesJoueur(nomsJoueurs[index], index)}
+          </Avatar>
 
-      {#each nomsJoueurs as nom, index}
-        <div class="flex gap-2 items-center">
-          <div class="w-8 h-8 rounded-full bg-primary-700 flex items-center justify-center text-xs font-bold flex-shrink-0">
-            {index + 1}
-          </div>
-          <input
+          <Input
             type="text"
             bind:value={nomsJoueurs[index]}
-            placeholder="Prénom du joueur {index + 1}"
-            maxlength="20"
-            class="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-primary-500 transition-colors"
-            on:input={() => (erreur = '')}
+            placeholder={nomParDefaut(index)}
+            maxlength={20}
+            class="flex-1 bg-transparent! border-0! shadow-none! ring-0! text-white! font-semibold! text-base! outline-none! placeholder-white/30! min-w-0 focus:ring-0! p-0!"
+            oninput={() => (erreur = '')}
           />
-          {#if nomsJoueurs.length > NOM_MIN}
-            <button
-              class="w-8 h-8 rounded-full bg-red-900/50 hover:bg-red-700 flex items-center justify-center text-red-400 hover:text-white transition-colors flex-shrink-0"
-              on:click={() => supprimerJoueur(index)}
-              aria-label="Supprimer {nom || 'ce joueur'}"
-            >
-              ✕
-            </button>
-          {/if}
+
+          <Button
+            size="sm"
+            color="dark"
+            class="w-9! h-9! p-0! flex items-center justify-center text-white/30 hover:text-white/70 bg-transparent! border-0! shadow-none! disabled:opacity-20"
+            disabled={nomsJoueurs.length <= NOM_MIN}
+            onclick={() => supprimerJoueur(index)}
+            aria-label="Supprimer {nomsJoueurs[index] || nomParDefaut(index)}"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </Button>
         </div>
       {/each}
 
       {#if nomsJoueurs.length < NOM_MAX}
-        <button
-          class="w-full py-3 border-2 border-dashed border-white/20 hover:border-primary-500 rounded-xl text-white/40 hover:text-primary-400 transition-colors text-sm font-medium"
-          on:click={ajouterJoueur}
+        <Button
+          color="light"
+          class="w-full! border-2! border-dashed! border-white/15! hover:border-white/30! bg-transparent! rounded-2xl! py-7! flex! flex-col! items-center! gap-2! transition-colors! active:bg-white/5!"
+          onclick={ajouterJoueur}
         >
-          + Ajouter un joueur
-        </button>
+          <div class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-xl font-light text-white/60">+</div>
+          <span class="text-sm text-white/40 font-medium">Ajouter un joueur</span>
+        </Button>
       {/if}
     </div>
 
-    <div class="card space-y-3">
-      <h2 class="text-sm font-semibold text-white/60 uppercase tracking-wider">
-        Undercover(s)
-      </h2>
-      <div class="flex items-center justify-between">
-        <span class="text-white">Nombre d'undercover</span>
-        <div class="flex items-center gap-3">
-          <button
-            class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center font-bold transition-colors disabled:opacity-30"
-            on:click={() => (nbUndercover = Math.max(1, nbUndercover - 1))}
-            disabled={nbUndercover <= 1}
-            aria-label="Diminuer"
-          >
-            −
-          </button>
-          <span class="text-xl font-bold w-6 text-center">{nbUndercover}</span>
-          <button
-            class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center font-bold transition-colors disabled:opacity-30"
-            on:click={() => (nbUndercover = Math.min(nbUndercoverMax, nbUndercover + 1))}
-            disabled={nbUndercover >= nbUndercoverMax}
-            aria-label="Augmenter"
-          >
-            +
-          </button>
-        </div>
-      </div>
-      <p class="text-xs text-white/40">
-        Maximum {nbUndercoverMax} pour {nomsJoueurs.length} joueurs
-      </p>
-    </div>
-
     {#if erreur}
-      <div class="bg-red-900/30 border border-red-500/50 rounded-xl px-4 py-3 text-red-300 text-sm">
+      <Alert color="red" class="mt-4" border>
         {erreur}
-      </div>
+      </Alert>
     {/if}
   </div>
 
-  <div class="px-6 pb-8 pt-4">
-    <button class="btn-primary" on:click={validerEtLancer}>
-      Lancer la partie
+  <div class="px-5 pb-10 pt-4 flex gap-3">
+    <button
+      class="btn-secondary flex items-center justify-center gap-2 w-14 flex-shrink-0"
+      on:click={() => partieStore.retourAccueil()}
+      aria-label="Retour"
+    >
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+    <button class="btn-accent flex-1" on:click={validerEtLancer}>
+      Commencer la partie
     </button>
   </div>
 </div>
